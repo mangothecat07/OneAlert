@@ -69,6 +69,21 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="OneAlert API", lifespan=lifespan)
+
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print(f"\n--- 422 VALIDATION ERROR ---")
+    print(f"URL: {request.url}")
+    print(f"Errors: {exc.errors()}")
+    print(f"Body: {exc.body}\n----------------------------\n")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "body": exc.body},
+    )
+
 public_router = APIRouter()
 
 import os
@@ -488,8 +503,9 @@ class Evidence(BaseModel):
     evidence_id: str
     file_name: str
     file_path: str
-    file_hash: str
-    is_sensitive: bool
+    file_type: Optional[str] = None
+    sha256_hash: str
+    is_sensitive: bool = False
     uploaded_at: str
     access_logs: List[EvidenceAccessLog] = []
 

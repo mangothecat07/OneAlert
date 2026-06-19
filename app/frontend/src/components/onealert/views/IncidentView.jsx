@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ArrowLeft, ShieldAlert, PhoneCall, Mic, Navigation, AlertTriangle, DownloadIcon } from "lucide-react";
-import { api, BACKEND_URL } from "@/lib/api";
+import { api, BACKEND_URL, WS_URL } from "@/lib/api";
 import { toast } from "react-hot-toast";
 import { useAuth } from "@/context/AuthContext";
 
@@ -33,6 +33,7 @@ const IncidentView = ({ incident, incidentId, onBack, isCitizen = false }) => {
   const [submittingSuspect, setSubmittingSuspect] = useState(false);
   const [locFilter, setLocFilter] = useState("compact");
   const [openEvidenceLogs, setOpenEvidenceLogs] = useState({});
+  const [isTrulyLive, setIsTrulyLive] = useState(false);
 
   const targetId = incident?.id || incidentId;
 
@@ -74,9 +75,7 @@ const IncidentView = ({ incident, incidentId, onBack, isCitizen = false }) => {
     
     fetchLatest(enteredPassword);
 
-    const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = BACKEND_URL.replace(/^https?:\/\//, "");
-    const socket = new WebSocket(`${wsProtocol}//${wsUrl}/api/ws/incident/${targetId}`);
+    const socket = new WebSocket(`${WS_URL}/ws/incident/${targetId}`);
     
     socket.onmessage = (event) => {
       try {
@@ -93,6 +92,30 @@ const IncidentView = ({ incident, incidentId, onBack, isCitizen = false }) => {
       socket.close();
     };
   }, [targetId, isCitizen]);
+
+  useEffect(() => {
+    if (!currentIncident?.location?.is_live_tracking) {
+      setIsTrulyLive(false);
+      return;
+    }
+    
+    const checkLiveness = () => {
+      let lastTime = 0;
+      if (currentIncident.location_history && currentIncident.location_history.length > 0) {
+        lastTime = new Date(currentIncident.location_history[currentIncident.location_history.length - 1].timestamp).getTime();
+      } else if (currentIncident.last_updated) {
+        lastTime = new Date(currentIncident.last_updated).getTime();
+      }
+      
+      const diff = Date.now() - lastTime;
+      // Consider it "live" if the last update was within 15 seconds (15000ms)
+      setIsTrulyLive(diff < 15000);
+    };
+
+    checkLiveness();
+    const iv = setInterval(checkLiveness, 2000);
+    return () => clearInterval(iv);
+  }, [currentIncident]);
 
   const handleUnlock = () => {
     if (!enteredPassword) return;
@@ -153,58 +176,214 @@ const IncidentView = ({ incident, incidentId, onBack, isCitizen = false }) => {
 
   const downloadPDF = () => {
     const printWindow = window.open('', '', 'width=800,height=600');
+    
+    // Format helpers
+    const fDate = (d) => new Date(d).toLocaleString();
+    const c = currentIncident;
+    const cd = c.cyber_details || {};
+    const rdStr = typeof cd.reporter_details === 'string' ? cd.reporter_details.trim() : '';
+    
     printWindow.document.write(`
       <html>
         <head>
-          <title>Incident Report - ${currentIncident.id}</title>
+          <title>Incident Report - ${c.id}</title>
           <style>
-            body { font-family: sans-serif; padding: 40px; color: #333; line-height: 1.6; }
-            h1 { color: #d32f2f; border-bottom: 2px solid #d32f2f; padding-bottom: 10px; }
-            .section { margin-top: 20px; margin-bottom: 20px; }
-            .label { font-weight: bold; text-transform: uppercase; font-size: 12px; color: #666; }
-            .content { margin-top: 5px; padding: 10px; background: #f9f9f9; border-left: 4px solid #ccc; white-space: pre-wrap; font-family: monospace; }
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 40px; color: #222; line-height: 1.6; font-size: 14px; }
+            h1 { color: #d32f2f; border-bottom: 2px solid #d32f2f; padding-bottom: 10px; margin-bottom: 30px; }
+            h2 { color: #444; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-top: 30px; font-size: 18px; }
+            .section { margin-top: 15px; margin-bottom: 15px; }
+            .label { font-weight: bold; text-transform: uppercase; font-size: 11px; color: #777; letter-spacing: 0.05em; margin-bottom: 3px; }
+            .content { padding: 12px; background: #f8f9fa; border-left: 4px solid #d32f2f; white-space: pre-wrap; font-family: monospace; font-size: 13px; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+            th, td { padding: 8px 12px; border: 1px solid #ddd; text-align: left; }
+            th { background: #f0f0f0; font-weight: bold; }
+            .threat-high { color: #d32f2f; font-weight: bold; }
+            .threat-med { color: #ed6c02; font-weight: bold; }
+            .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; border: 1px solid #ccc; background: #eee; margin-right: 5px; margin-bottom: 5px; }
           </style>
         </head>
         <body>
           <h1>Official Incident Report</h1>
+          
+          <div style="display: flex; justify-content: space-between;">
+            <div style="flex: 1;">
+              <div class="section"><div class="label">Incident ID</div><div style="font-size: 18px; font-weight: bold; font-family: monospace;">${c.id}</div></div>
+              <div class="section"><div class="label">Reported Timestamp</div><div>${fDate(c.timestamp)}</div></div>
+              <div class="section"><div class="label">Last Updated</div><div>${fDate(c.last_updated || c.timestamp)}</div></div>
+            </div>
+            <div style="flex: 1;">
+              <div class="section"><div class="label">Type</div><div style="font-weight: bold; text-transform: uppercase;">${c.type.replace('_', ' ')}</div></div>
+              <div class="section"><div class="label">Status</div><div style="font-weight: bold; text-transform: uppercase;">${c.status}</div></div>
+              <div class="section"><div class="label">Trigger Type</div><div>${c.trigger_type || 'Unknown'}</div></div>
+            </div>
+          </div>
+
+          <h2>1. Reporter & User Details</h2>
           <div class="section">
-            <div class="label">Incident ID</div>
-            <div class="content">${currentIncident.id}</div>
+            <div class="label">App Account Info</div>
+            <div class="content">Name: ${c.user?.name || c.name || 'Unknown'}\nPhone: ${c.user?.phone || c.phone || 'Unknown'}</div>
+          </div>
+          ${rdStr ? `
+          <div class="section">
+            <div class="label">Citizen Form Details (If provided)</div>
+            <div class="content">${rdStr}</div>
+          </div>
+          ` : ''}
+
+          <h2>2. Incident Context</h2>
+          ${cd.crime_category ? `
+          <div class="section">
+            <div class="label">Crime Category</div>
+            <div style="font-weight: bold; color: #d32f2f;">${cd.crime_category}</div>
+          </div>
+          ` : ''}
+          <div class="section">
+            <div class="label">Description</div>
+            <div class="content">${cd.description || 'No description provided.'}</div>
+          </div>
+
+          <h2>3. AI Threat Analysis</h2>
+          ${c.ai_analysis ? `
+          <div class="section">
+            <div class="label">Threat Score</div>
+            <div class="${c.ai_analysis.threat_score >= 80 ? 'threat-high' : c.ai_analysis.threat_score >= 50 ? 'threat-med' : ''}" style="font-size: 18px;">
+              ${c.ai_analysis.threat_score} / 100
+            </div>
           </div>
           <div class="section">
-            <div class="label">Reported Timestamp</div>
-            <div class="content">${new Date(currentIncident.timestamp).toLocaleString()}</div>
+            <div class="label">Detected Risk Flags</div>
+            <div>
+              ${c.ai_analysis.flags && c.ai_analysis.flags.length > 0 
+                ? c.ai_analysis.flags.map(f => `<span class="badge">${f}</span>`).join('') 
+                : 'No critical flags.'}
+            </div>
           </div>
+          ` : '<div class="content">AI analysis pending or unavailable.</div>'}
+
+          <h2>4. Location Data</h2>
+          ${c.location ? `
           <div class="section">
-            <div class="label">Type</div>
-            <div class="content">${currentIncident.type}</div>
+            <div class="label">Current/Last Known Coordinates</div>
+            <div class="content">Latitude: ${c.location.lat}\nLongitude: ${c.location.lng}\nAccuracy: ±${Math.round(c.location.accuracy)}m\nAddress: ${c.location.address || 'Unknown'}</div>
           </div>
+          ` : '<div class="content">No location data provided.</div>'}
+          
+          ${c.location_history && c.location_history.length > 0 ? `
           <div class="section">
-            <div class="label">Status</div>
-            <div class="content">${currentIncident.status}</div>
+            <div class="label">Location History Log (${c.location_history.length} records)</div>
+            <table>
+              <tr><th>Timestamp</th><th>Coordinates</th><th>Accuracy</th><th>Address</th></tr>
+              ${c.location_history.map(l => `
+                <tr>
+                  <td>${fDate(l.timestamp)}</td>
+                  <td>${l.lat.toFixed(6)}, ${l.lng.toFixed(6)}</td>
+                  <td>±${Math.round(l.accuracy)}m</td>
+                  <td>${l.address || 'N/A'}</td>
+                </tr>
+              `).join('')}
+            </table>
           </div>
+          ` : ''}
+
+          <h2>5. Suspects & Victims</h2>
           <div class="section">
-            <div class="label">Reporter Details</div>
-            <div class="content">Name: ${currentIncident.user?.name || currentIncident.name || 'Unknown'}\nPhone: ${currentIncident.user?.phone || currentIncident.phone || 'Unknown'}</div>
+            <div class="label">Identified Suspects</div>
+            ${cd.suspects && cd.suspects.length > 0 ? `
+            <ul>
+              ${cd.suspects.map(s => {
+                const sName = typeof s === 'string' ? s : s.name;
+                const sSrc = typeof s === 'string' ? 'Citizen' : (s.source || 'Unknown');
+                return `<li><strong>${sName}</strong> <span style="color:#666; font-size:11px;">(Source: ${sSrc})</span></li>`;
+              }).join('')}
+            </ul>
+            ` : '<div class="content">None identified.</div>'}
           </div>
+
+          ${cd.victims && cd.victims.length > 0 ? `
           <div class="section">
-            <div class="label">Context / Description</div>
-            <div class="content">${currentIncident.cyber_details?.description || 'N/A'}</div>
+            <div class="label">Identified Victims</div>
+            <table>
+              <tr><th>Name</th><th>Age</th><th>Contact</th><th>Relation to Suspect</th></tr>
+              ${cd.victims.map(v => `
+                <tr>
+                  <td>${v.name || 'N/A'}</td>
+                  <td>${v.age || 'N/A'}</td>
+                  <td>${v.contact || 'N/A'}</td>
+                  <td>${v.relation_to_suspect || 'N/A'}</td>
+                </tr>
+              `).join('')}
+            </table>
           </div>
+          ` : ''}
+
+          <h2>6. Evidence & Law Enforcement Integration</h2>
+          ${c.type === 'cyber_report' ? `
           <div class="section">
-            <div class="label">Suspects</div>
-            <div class="content">${currentIncident.cyber_details?.suspects?.join(', ') || 'None identified'}</div>
+            <div class="label">Cyber Crime Branch (CCB) Sync</div>
+            <div class="content">Status: ${c.ccb_sync_status ? c.ccb_sync_status.toUpperCase() : 'NOT FORWARDED'}\nCase Ref: ${c.ccb_case_ref || 'N/A'}</div>
           </div>
+          ` : ''}
+          
           <div class="section">
-            <div class="label">Evidence Files Attached</div>
-            <div class="content">${currentIncident.evidence?.map(f => f.file_name + " (SHA256: " + f.sha256_hash + ")").join('\\n') || 'No files attached'}</div>
+            <div class="label">Digital Evidence Files Attached</div>
+            ${c.evidence && c.evidence.length > 0 ? `
+            <table>
+              <tr><th>File Name</th><th>SHA256 Hash</th><th>Sensitive</th></tr>
+              ${c.evidence.map(e => `
+                <tr>
+                  <td>${e.file_name}</td>
+                  <td style="font-family: monospace; font-size: 11px;">${e.sha256_hash}</td>
+                  <td>${e.is_sensitive ? 'YES' : 'NO'}</td>
+                </tr>
+              `).join('')}
+            </table>
+            ` : '<div class="content">No files attached.</div>'}
+          </div>
+
+          <h2>7. Status Timeline & Comments</h2>
+          ${c.status_history && c.status_history.length > 0 ? `
+          <div class="section">
+            <div class="label">Status History</div>
+            <table>
+              <tr><th>Timestamp</th><th>Status</th><th>Updated By</th><th>Description</th></tr>
+              ${[...c.status_history].reverse().map(s => `
+                <tr>
+                  <td>${fDate(s.timestamp)}</td>
+                  <td style="text-transform: uppercase; font-weight: bold;">${s.status}</td>
+                  <td style="text-transform: capitalize;">${s.source || 'System'}</td>
+                  <td>${s.description || '-'}</td>
+                </tr>
+              `).join('')}
+            </table>
+          </div>
+          ` : ''}
+
+          ${c.comments && c.comments.length > 0 ? `
+          <div class="section">
+            <div class="label">Comments & Updates</div>
+            <table>
+              <tr><th>Timestamp</th><th>Author</th><th>Comment</th></tr>
+              ${[...c.comments].reverse().map(com => `
+                <tr>
+                  <td>${fDate(com.timestamp)}</td>
+                  <td style="text-transform: capitalize;">${com.source || 'System'}</td>
+                  <td>${com.text}</td>
+                </tr>
+              `).join('')}
+            </table>
+          </div>
+          ` : ''}
+
+          <div style="margin-top: 50px; text-align: center; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 20px;">
+            Generated securely via OneAlert Unified Cyber-Physical Safety Platform.<br>
+            Timestamp: ${fDate(new Date())}
           </div>
         </body>
       </html>
     `);
     printWindow.document.close();
     printWindow.focus();
-    printWindow.print();
+    setTimeout(() => { printWindow.print(); }, 500);
   };
 
   const handleUpdateStatus = async () => {
@@ -404,8 +583,8 @@ const IncidentView = ({ incident, incidentId, onBack, isCitizen = false }) => {
                      {currentIncident.location.lat.toFixed(6)}, {currentIncident.location.lng.toFixed(6)}
                    </span>
                    {currentIncident.location.is_live_tracking && (
-                     <span className="text-xs bg-[var(--danger)]/10 text-[var(--danger)] border border-[var(--danger)]/30 px-3 py-1 rounded font-bold uppercase tracking-wider animate-pulse">
-                       Live Tracking Active
+                     <span className={`text-xs px-3 py-1 rounded border font-bold uppercase tracking-wider ${isTrulyLive ? "bg-[var(--danger)]/10 text-[var(--danger)] border-[var(--danger)]/30 animate-pulse" : "bg-neutral-500/10 text-neutral-400 border-neutral-500/30"}`}>
+                       {isTrulyLive ? "Live Tracking Active" : "Tracking Signal Lost"}
                      </span>
                    )}
                 </div>
@@ -892,7 +1071,7 @@ const IncidentView = ({ incident, incidentId, onBack, isCitizen = false }) => {
                             }}
                             className="text-sm font-bold flex items-start text-left gap-2 hover:underline text-[var(--text-primary)] break-words"
                           >
-                            <span className="shrink-0">{ev.file_type.includes("image") ? "🖼️" : "📄"}</span> 
+                            <span className="shrink-0">{(ev.file_type || '').includes("image") ? "🖼️" : "📄"}</span> 
                             <span>{ev.file_name}</span>
                           </button>
                         ) : (
@@ -906,7 +1085,7 @@ const IncidentView = ({ incident, incidentId, onBack, isCitizen = false }) => {
                             }}
                             className="text-sm font-bold flex items-start text-left gap-2 hover:underline text-[var(--text-primary)] break-words"
                           >
-                            <span className="shrink-0">{ev.file_type.includes("image") ? "🖼️" : "📄"}</span> 
+                            <span className="shrink-0">{(ev.file_type || '').includes("image") ? "🖼️" : "📄"}</span> 
                             <span>{ev.file_name}</span>
                           </button>
                         )}

@@ -145,7 +145,7 @@ const ContactsView = () => {
                     </a>
                     <button 
                       onClick={() => handleRemoveContact(contact.id)}
-                      className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--danger)] transition-colors opacity-0 group-hover:opacity-100"
+                      className="p-1.5 text-[var(--danger)] transition-colors opacity-0 opacity-100"
                     >
                       <Trash2 size={16} />
                     </button>

@@ -15,9 +15,28 @@ import { ShieldAlert, Phone, FileText, Filter, Lock } from "lucide-react";
 import { api, BACKEND_URL } from "@/lib/api";
 import { toast } from "react-hot-toast";
 import { startGlobalTracking } from "@/utils/LocationTracker";
+import { registerPlugin } from '@capacitor/core';
+
+const PhonePlugin = registerPlugin('PhonePlugin');
 
 // A dedicated home view for citizens
 const CitizenHomeView = ({ onOpenReport, onViewReports, onOpenScanner }) => {
+  const [nativePhone, setNativePhone] = useState("+91 0000000000");
+
+  useEffect(() => {
+    const fetchPhone = async () => {
+      try {
+        const { number } = await PhonePlugin.getPhoneNumber();
+        if (number) {
+          setNativePhone(number);
+        }
+      } catch (e) {
+        console.warn("Could not fetch native phone number:", e);
+      }
+    };
+    fetchPhone();
+  }, []);
+
   return (
     <div className="min-h-full flex flex-col items-center justify-center animate-in fade-in slide-in-from-bottom-4 duration-500 gap-8">
       <div className="text-center">
@@ -40,11 +59,8 @@ const CitizenHomeView = ({ onOpenReport, onViewReports, onOpenScanner }) => {
             // Create SOS record
             const triggerSOS = async (lat = 0, lng = 0, accuracy = 0) => {
               const incId = `INC-${Date.now()}`;
-              let pin = localStorage.getItem("onealert_reports_password");
-              if (!pin) {
-                pin = Math.floor(1000 + Math.random() * 9000).toString();
-                localStorage.setItem("onealert_reports_password", pin);
-              }
+              const pin = Math.floor(100000 + Math.random() * 900000).toString();
+              
               
               // Fire request in the background instantly without blocking
               fetch(`${BACKEND_URL}/api/incident`, {
@@ -61,7 +77,7 @@ const CitizenHomeView = ({ onOpenReport, onViewReports, onOpenScanner }) => {
                   user: {
                     user_id: "usr_citizen",
                     name: "Citizen User",
-                    phone: "+91 0000000000",
+                    phone: nativePhone || "Unknown",
                     emergency_contacts_notified: false
                   },
                   location: { lat, lng, accuracy, is_live_tracking: true },
@@ -136,11 +152,7 @@ const CitizenHomeView = ({ onOpenReport, onViewReports, onOpenScanner }) => {
             // Create Silent SOS record
             const triggerSilentSOS = async (lat = 0, lng = 0, accuracy = 0) => {
               const incId = `INC-${Date.now()}`;
-              let pin = localStorage.getItem("onealert_reports_password");
-              if (!pin) {
-                pin = Math.floor(1000 + Math.random() * 9000).toString();
-                localStorage.setItem("onealert_reports_password", pin);
-              }
+              const pin = Math.floor(100000 + Math.random() * 900000).toString();
               
               // Fire request in the background instantly without blocking
               fetch(`${BACKEND_URL}/api/incident`, {
@@ -157,7 +169,7 @@ const CitizenHomeView = ({ onOpenReport, onViewReports, onOpenScanner }) => {
                   user: {
                     user_id: "usr_citizen",
                     name: "Citizen User",
-                    phone: "+91 0000000000",
+                    phone: nativePhone,
                     emergency_contacts_notified: false
                   },
                   location: { lat, lng, accuracy, is_live_tracking: true },

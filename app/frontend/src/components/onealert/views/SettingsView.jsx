@@ -211,7 +211,7 @@ const SettingsView = () => {
 
           <div className="flex flex-col gap-4">
             <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-              Live location tracking is currently <strong className={isTracking ? "text-[var(--danger)]" : "text-[var(--primary)]"}>{isTracking ? "ACTIVE" : "INACTIVE"}</strong>.
+
               Disabling this feature during an active emergency will immediately stop broadcasting your real-time coordinates to first responders.
             </p>
 

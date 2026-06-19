@@ -76,6 +76,14 @@ The platform allows users to:
 - **Database:** MongoDB (Motor async) / Local JSON fallback
 - **Integrations:** Cordova SMS Plugin, OpenRouter AI, Twilio (optional webhook)
 
+## Documentation
+
+For an in-depth understanding of how OneAlert operates under the hood, please refer to our detailed documentation:
+
+- [Architecture](./docs/ARCHITECTURE.md) - High-level system design and security mechanisms.
+- [Workflows](./docs/WORKFLOW.md) - Step-by-step flows for SOS, Cyber Crime reporting, and evidence decryption.
+- [Integrations](./docs/INTEGRATIONS.md) - Details on external services like OpenRouter LLM and SMS fallback.
+
 ## How to Run
 
 ### Backend

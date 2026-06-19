@@ -151,13 +151,10 @@ const CrimeReportView = ({ onBack }) => {
       return;
     }
 
-    let pwd = localStorage.getItem("onealert_reports_password");
+    let pwd = prompt("Please enter a secure privacy password for this incident report (you will need this to view it later):");
     if (!pwd) {
-      pwd = prompt("Please enter a secure privacy password for this incident report (you will need this to view it later):");
-      if (!pwd) {
-        toast.error("Password is required to submit a report.");
-        return;
-      }
+      toast.error("Password is required to submit a report.");
+      return;
     }
 
     setSubmitting(true);
@@ -692,45 +689,42 @@ Contact: ____________________
       )}
 
       <div className="border-t border-[var(--border)] pt-4 flex justify-between items-center bg-[var(--bg)] pb-4">
-        <div className="flex items-center gap-2 text-[var(--text-secondary)] text-xs">
-        </div>
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 w-full sm:w-auto ml-auto">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <button
               onClick={saveAsDraft}
-              
-               className="flex-1 sm:flex-none justify-center px-4 py-3 rounded-lg text-sm font-bold tracking-widest uppercase border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--primary)] transition-all flex items-center gap-2"
+              className="flex-1 sm:flex-none justify-center px-2 py-2 sm:px-4 sm:py-3 rounded-lg text-[10px] sm:text-sm font-bold tracking-wider sm:tracking-widest uppercase border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--primary)] transition-all flex items-center gap-1 sm:gap-2 text-center leading-tight"
             >
               <Save size={16} />
-              Save as Draft
+              Save Draft
             </button>
             <button
               onClick={sendReport}
               disabled={submitting}
-              className="flex-1 sm:flex-none justify-center px-6 py-3 rounded-lg text-sm font-bold tracking-widest uppercase bg-[var(--primary)] text-black hover:bg-[var(--primary)]/90 transition-all disabled:opacity-50 flex items-center gap-2 shadow-[0_0_15px_rgba(70,197,165,0.4)]"
+              className="flex-1 sm:flex-none justify-center px-3 py-2 sm:px-6 sm:py-3 rounded-lg text-[10px] sm:text-sm font-bold tracking-wider sm:tracking-widest uppercase bg-[var(--primary)] text-black hover:bg-[var(--primary)]/90 transition-all disabled:opacity-50 flex items-center gap-1 sm:gap-2 shadow-[0_0_15px_rgba(70,197,165,0.4)] text-center leading-tight"
             >
               {submitting ? (
-                <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
+                <div className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
               ) : (
-                <Send size={18} />
+                <Send size={16} />
               )}
               Send Report
             </button>
           </div>
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
             <button
               onClick={generateFIR}
-             className="flex-1 sm:flex-none justify-center px-4 py-3 rounded-lg text-sm font-bold tracking-widest uppercase border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--primary)] transition-all flex items-center gap-2"
+              className="flex-1 sm:flex-none justify-center px-2 py-2 sm:px-4 sm:py-3 rounded-lg text-[10px] sm:text-sm font-bold tracking-wider sm:tracking-widest uppercase border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--primary)] transition-all flex items-center gap-1 sm:gap-2 text-center leading-tight"
             >
               <FileText size={16} />
-              Generate FIR Draft
+               FIR DRAFT
             </button>
             <button
               onClick={downloadPDF}
-              className="flex-1 sm:flex-none justify-center px-4 py-3 rounded-lg text-sm font-bold tracking-widest uppercase border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--primary)] transition-all flex items-center gap-2"
+              className="flex-1 sm:flex-none justify-center px-2 py-2 sm:px-4 sm:py-3 rounded-lg text-[10px] sm:text-sm font-bold tracking-wider sm:tracking-widest uppercase border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--surface-hover)] hover:text-[var(--primary)] transition-all flex items-center gap-1 sm:gap-2 text-center leading-tight"
             >
-              <DownloadIcon size={18} />
-              Download PDF
+              <DownloadIcon size={16} />
+              Get PDF
             </button>
           </div>
         </div>
